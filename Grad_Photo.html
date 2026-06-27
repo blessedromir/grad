@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Romir's Grad Photo Booth 🎓</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0C1823;
+    --surface: #172232;
+    --surface2: #1E2F42;
+    --gold: #F5C842;
+    --gold-dim: rgba(245,200,66,0.18);
+    --white: #FFFFFF;
+    --text: #E8EDF5;
+    --muted: rgba(232,237,245,0.55);
+    --coral: #FF6552;
+    --blue: #5BA8FF;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* ---- START SCREEN ---- */
+  #startScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    z-index: 50;
+    padding: 32px;
+    text-align: center;
+  }
+  #startScreen .icon-wrap {
+    width: 88px; height: 88px;
+    border-radius: 50%;
+    background: var(--gold-dim);
+    border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.8rem;
+  }
+  #startScreen h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 2rem;
+    color: var(--gold);
+    letter-spacing: 0.3px;
+  }
+  #startScreen p {
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    max-width: 280px;
+  }
+  .start-btn {
+    margin-top: 8px;
+    padding: 15px 40px;
+    border-radius: 50px;
+    border: none;
+    background: var(--gold);
+    color: #0C1823;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.15rem;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+  }
+  .start-btn:active { transform: scale(0.95); opacity: 0.9; }
+
+  /* ---- MAIN LAYOUT ---- */
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .topbar {
+    flex-shrink: 0;
+    padding: 6px 16px 4px;
+    text-align: center;
+  }
+  .topbar h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    color: var(--gold);
+  }
+  .topbar p {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* ---- CAMERA ---- */
+  .camera-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #000;
+    min-height: 0;
+  }
+  #video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1);
+    display: block;
+  }
+  #overlayCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  canvas#capture { display: none; }
+
+  /* ---- CONTROLS ---- */
+  .controls {
+    flex-shrink: 0;
+    background: var(--surface);
+    padding: 8px 16px calc(10px + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+
+  .overlay-strip {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px 0;
+  }
+  .overlay-strip::-webkit-scrollbar { display: none; }
+  .ov-btn {
+    flex-shrink: 0;
+    width: 56px; height: 56px;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background: var(--surface2);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    touch-action: manipulation;
+  }
+  .ov-btn .ov-icon { font-size: 1.5rem; }
+  .ov-btn .ov-label { font-size: 0.58rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; }
+  .ov-btn.active { border-color: var(--gold); background: var(--gold-dim); }
+  .ov-btn.active .ov-label { color: var(--gold); }
+
+  .bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    position: relative;
+  }
+  .capture-btn {
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 4px solid var(--gold);
+    background: var(--white);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    transition: transform 0.1s;
+    box-shadow: 0 0 0 8px var(--gold-dim);
+    touch-action: manipulation;
+  }
+  .capture-btn:active { transform: scale(0.9); }
+
+  /* ---- MODAL ---- */
+  .modal-bg {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(8,16,26,0.92);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 16px;
+  }
+  .modal-bg.show { display: flex; }
+  .modal-label {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.25rem;
+    color: var(--gold);
+    letter-spacing: 0.3px;
+  }
+  #previewImg {
+    max-width: 100%;
+    max-height: 58vh;
+    border-radius: 14px;
+    border: 2px solid rgba(245,200,66,0.3);
+  }
+  .modal-actions { display: flex; gap: 12px; }
+  .btn-gold {
+    padding: 13px 30px;
+    border-radius: 50px;
+    border: none;
+    background: var(--gold);
+    color: #0C1823;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.1s;
+    touch-action: manipulation;
+  }
+  .btn-gold:active { transform: scale(0.96); }
+  .btn-ghost {
+    padding: 13px 30px;
+    border-radius: 50px;
+    border: 1.5px solid rgba(232,237,245,0.25);
+    background: transparent;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 0.9rem;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+</style>
+</head>
+<body>
+
+<!-- ---- START SCREEN ---- -->
+<div id="startScreen">
+  <div class="icon-wrap">📸</div>
+  <h1>Romir's Grad Photo Booth</h1>
+  <p>Pick a fun frame, strike a pose, and download your memory from today!</p>
+  <button class="start-btn" onclick="startCamera()">Open Camera</button>
+</div>
+
+<!-- ---- MAIN APP ---- -->
+<div id="app">
+  <div class="topbar">
+    <h1>🎓 Romir's Grad Booth</h1>
+    <p>Pick a frame below, then tap the button</p>
+  </div>
+
+  <div class="camera-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="overlayCanvas"></canvas>
+    <canvas id="capture"></canvas>
+  </div>
+
+  <div class="controls">
+    <div class="overlay-strip" id="overlayStrip"></div>
+    <div class="bottom-row">
+      <button class="capture-btn" onclick="capturePhoto()" title="Take photo">📸</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---- PREVIEW MODAL ---- -->
+<div class="modal-bg" id="modal">
+  <div class="modal-label">Looking great! 🎉</div>
+  <img id="previewImg" alt="Your grad party photo">
+  <div class="modal-actions">
+    <button class="btn-gold" id="downloadBtn">Download</button>
+    <button class="btn-ghost" onclick="retake()">Retake</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+// CONFIG — edit these before deploying
+// =============================================
+const GRAD_NAME = "Romir";         // Graduate's name
+const PARTY_YEAR = "2026";         // Graduation year
+// =============================================
+
+const overlayDefs = [
+  { id: 'none',     emoji: '🚫', label: 'None',     draw: () => {} },
+  { id: 'grad',     emoji: '🎓', label: 'Classic',  draw: drawGrad },
+  { id: 'engineer', emoji: '⚙️', label: 'Engineer', draw: drawEngineer },
+  { id: 'polaroid', emoji: '🖼️', label: 'Polaroid', draw: drawPolaroid },
+  { id: 'stars',    emoji: '🌟', label: 'Stars',    draw: drawStars },
+  { id: 'party',    emoji: '🎉', label: 'Party',    draw: drawParty },
+];
+
+let currentOverlay = 'none';
+let capturedDataUrl = null;
+let animFrame = null;
+const video = document.getElementById('video');
+const overlayCanvas = document.getElementById('overlayCanvas');
+const ocx = overlayCanvas.getContext('2d');
+
+// Build overlay strip
+const strip = document.getElementById('overlayStrip');
+overlayDefs.forEach(ov => {
+  const btn = document.createElement('button');
+  btn.className = 'ov-btn' + (ov.id === 'none' ? ' active' : '');
+  btn.dataset.id = ov.id;
+  btn.innerHTML = `<span class="ov-icon">${ov.emoji}</span><span class="ov-label">${ov.label}</span>`;
+  btn.onclick = () => {
+    currentOverlay = ov.id;
+    document.querySelectorAll('.ov-btn').forEach(b => b.classList.toggle('active', b.dataset.id === ov.id));
+  };
+  strip.appendChild(btn);
+});
+
+// Live overlay loop
+function renderLoop() {
+  const container = document.querySelector('.camera-wrap');
+  const w = container.offsetWidth;
+  const h = container.offsetHeight;
+  overlayCanvas.width = w;
+  overlayCanvas.height = h;
+  ocx.clearRect(0, 0, w, h);
+  const ov = overlayDefs.find(o => o.id === currentOverlay);
+  if (ov) ov.draw(ocx, w, h);
+  animFrame = requestAnimationFrame(renderLoop);
+}
+
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } }
+    });
+    video.srcObject = stream;
+    document.getElementById('startScreen').style.display = 'none';
+    renderLoop();
+  } catch (e) {
+    alert('Camera access is needed for the photo booth. Please allow camera permissions and try again.');
+  }
+}
+
+function capturePhoto() {
+  const ov = overlayDefs.find(o => o.id === currentOverlay);
+  const w = video.videoWidth || 640;
+  const h = video.videoHeight || 480;
+  const cap = document.getElementById('capture');
+  cap.width = w; cap.height = h;
+  const ctx = cap.getContext('2d');
+  // Mirror the video for a natural selfie
+  ctx.save();
+  ctx.translate(w, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(video, 0, 0, w, h);
+  ctx.restore();
+  // Overlay drawn unmirrored so text reads correctly
+  if (ov) ov.draw(ctx, w, h);
+  capturedDataUrl = cap.toDataURL('image/jpeg', 0.92);
+  document.getElementById('previewImg').src = capturedDataUrl;
+  document.getElementById('modal').classList.add('show');
+  cancelAnimationFrame(animFrame);
+  document.getElementById('downloadBtn').onclick = () => {
+    const a = document.createElement('a');
+    a.href = capturedDataUrl;
+    a.download = `grad-party-${GRAD_NAME}-${Date.now()}.jpg`;
+    a.click();
+  };
+}
+
+function retake() {
+  document.getElementById('modal').classList.remove('show');
+  capturedDataUrl = null;
+  renderLoop();
+}
+
+// =============================================
+// OVERLAY DRAWING FUNCTIONS
+// =============================================
+
+function drawGrad(ctx, w, h) {
+  // Gold double border
+  ctx.strokeStyle = '#F5C842';
+  ctx.lineWidth = 10;
+  ctx.strokeRect(5, 5, w - 10, h - 10);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(245,200,66,0.45)';
+  ctx.strokeRect(20, 20, w - 40, h - 40);
+
+  // Corner star emblems
+  const sz = Math.min(w, h) * 0.065;
+  ctx.font = `${sz}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#F5C842';
+  [[sz, sz],[w-sz, sz],[sz, h-sz],[w-sz, h-sz]].forEach(([x,y]) => ctx.fillText('✦', x, y));
+
+  // Top mortarboard
+  const capSz = Math.min(w, h) * 0.09;
+  ctx.font = `${capSz}px serif`;
+  ctx.fillText('🎓', w / 2, capSz * 0.75);
+
+  // Bottom banner
+  const bH = h * 0.105;
+  ctx.fillStyle = 'rgba(12,24,35,0.78)';
+  ctx.fillRect(0, h - bH, w, bH);
+  ctx.fillStyle = '#F5C842';
+  ctx.font = `bold ${bH * 0.42}px 'Fredoka One', cursive, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`CLASS OF '${PARTY_YEAR}`, w / 2, h - bH / 2);
+}
+
+function drawEngineer(ctx, w, h) {
+  // Blueprint grid (subtle)
+  ctx.strokeStyle = 'rgba(91,168,255,0.12)';
+  ctx.lineWidth = 1;
+  const grid = w / 9;
+  for (let x = 0; x <= w; x += grid) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += grid) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+
+  // Blueprint border
+  ctx.strokeStyle = '#5BA8FF';
+  ctx.lineWidth = 6;
+  ctx.strokeRect(5, 5, w - 10, h - 10);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(91,168,255,0.5)';
+  ctx.strokeRect(15, 15, w - 30, h - 30);
+
+  // Corner gears
+  const gSz = Math.min(w, h) * 0.075;
+  ctx.font = `${gSz}px serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  [[gSz, gSz],[w-gSz, gSz],[gSz, h-gSz],[w-gSz, h-gSz]].forEach(([x,y]) => ctx.fillText('⚙️', x, y));
+
+  // Circular stamp badge (bottom)
+  const cx = w / 2, cy = h - h * 0.12;
+  const r = Math.min(w, h) * 0.13;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(12,24,35,0.85)'; ctx.fill();
+  ctx.strokeStyle = '#5BA8FF'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = '#5BA8FF';
+  ctx.font = `bold ${r * 0.33}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('FUTURE', cx, cy - r * 0.22);
+  ctx.fillText('ENGINEER', cx, cy + r * 0.22);
+
+  // Top label
+  const tH = h * 0.08;
+  ctx.fillStyle = 'rgba(12,24,35,0.78)';
+  ctx.fillRect(0, 0, w, tH);
+  ctx.fillStyle = '#5BA8FF';
+  ctx.font = `bold ${tH * 0.45}px monospace`;
+  ctx.fillText(`// ${GRAD_NAME}.build(future);`, w / 2, tH / 2);
+}
+
+function drawPolaroid(ctx, w, h) {
+  const side = w * 0.048;
+  const top = h * 0.042;
+  const bottom = h * 0.135;
+
+  // White polaroid border
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, w, top);           // top
+  ctx.fillRect(0, 0, side, h);          // left
+  ctx.fillRect(w - side, 0, side, h);   // right
+  ctx.fillRect(0, h - bottom, w, bottom); // bottom
+
+  // Subtle inner shadow line
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(side, top, w - side*2, h - top - bottom);
+
+  // Handwritten text on white area
+  ctx.fillStyle = '#555555';
+  ctx.font = `italic ${bottom * 0.32}px Georgia, serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`${GRAD_NAME}'s Grad Party — ${PARTY_YEAR} 🎉`, w / 2, h - bottom / 2);
+}
+
+function drawStars(ctx, w, h) {
+  // Dark gradient overlays at corners for contrast
+  const corners = [
+    [0, 0, 1, 0],
+    [w, 0, -1, 0],
+    [0, h, 1, -1],
+    [w, h, -1, -1],
+  ];
+  const patch = Math.min(w, h) * 0.32;
+  corners.forEach(([x, y, sx, sy]) => {
+    const grd = ctx.createRadialGradient(x, y, 0, x, y, patch);
+    grd.addColorStop(0, 'rgba(12,24,35,0.7)');
+    grd.addColorStop(1, 'rgba(12,24,35,0)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(sx < 0 ? x - patch : x, sy < 0 ? y - patch : y, patch, patch);
+  });
+
+  // Scattered stars
+  const starData = [
+    [0.06,0.04,'★'], [0.88,0.06,'✦'], [0.04,0.9,'✦'],
+    [0.92,0.88,'★'], [0.5,0.03,'⭐'], [0.03,0.47,'✦'],
+    [0.93,0.47,'★'], [0.17,0.08,'✦'], [0.78,0.08,'★'],
+    [0.08,0.77,'✦'], [0.88,0.77,'✦'],
+  ];
+  ctx.fillStyle = '#F5C842';
+  starData.forEach(([rx, ry, ch]) => {
+    const sz = Math.min(w, h) * (0.04 + Math.random() * 0.025);
+    ctx.font = `${sz}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(ch, rx * w, ry * h);
+  });
+
+  // Bottom strip
+  const bH = h * 0.105;
+  ctx.fillStyle = 'rgba(12,24,35,0.78)';
+  ctx.fillRect(0, h - bH, w, bH);
+  ctx.fillStyle = '#F5C842';
+  ctx.font = `bold ${bH * 0.42}px sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`✦ The Future Is Bright, ${GRAD_NAME} ✦`, w / 2, h - bH / 2);
+}
+
+function drawParty(ctx, w, h) {
+  const colors = ['#FF6552','#F5C842','#4EC9C0','#5BA8FF','#B067E9','#FF9F40'];
+  const shapes = ['●','■','▲','◆','★'];
+
+  // Deterministic confetti along edges
+  let s = 99;
+  const r = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967295; };
+  const edgeW = Math.min(w, h) * 0.14;
+
+  for (let i = 0; i < 44; i++) {
+    let x, y;
+    const edge = (i % 4);
+    if (edge === 0) { x = r() * w; y = r() * edgeW; }
+    else if (edge === 1) { x = r() * w; y = h - r() * edgeW; }
+    else if (edge === 2) { x = r() * edgeW; y = r() * h; }
+    else { x = w - r() * edgeW; y = r() * h; }
+    const sz = (0.025 + r() * 0.03) * Math.min(w, h);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(r() * Math.PI * 2);
+    ctx.font = `${sz}px serif`;
+    ctx.fillStyle = colors[Math.floor(r() * colors.length)];
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(shapes[Math.floor(r() * shapes.length)], 0, 0);
+    ctx.restore();
+  }
+
+  // Top banner
+  const bH = h * 0.1;
+  ctx.fillStyle = 'rgba(12,24,35,0.8)';
+  ctx.fillRect(0, 0, w, bH);
+  ctx.fillStyle = '#F5C842';
+  ctx.font = `bold ${bH * 0.5}px 'Fredoka One', cursive, sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`🎉  CONGRATS ${GRAD_NAME.toUpperCase()}!  🎉`, w / 2, bH / 2);
+}
+</script>
+</body>
+</html>
